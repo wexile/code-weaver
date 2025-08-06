@@ -24,6 +24,12 @@
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
     --radius: 0.5rem;
+    --sidebar: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-ring: 240 4.9% 83.9%;
   }
 
   .dark {
@@ -46,6 +52,12 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+    --sidebar: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-ring: 240 4.9% 83.9%;
   }
 
   .light {
@@ -68,6 +80,12 @@
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
     --ring: 240 10% 3.9%;
+    --sidebar: 240 4.8% 95.9%;
+    --sidebar-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-accent: 240 5.9% 90%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-ring: 240 10% 3.9%;
   }
 
   .theme-rose {
@@ -90,6 +108,12 @@
     --border: 350 50% 20%;
     --input: 350 50% 20%;
     --ring: 348 100% 68%;
+    --sidebar: 350 64% 9.6%;
+    --sidebar-foreground: 350 100% 98%;
+    --sidebar-border: 350 50% 20%;
+    --sidebar-accent: 350 50% 20%;
+    --sidebar-accent-foreground: 350 100% 98%;
+    --sidebar-ring: 348 100% 68%;
   }
 
   .theme-ocean {
@@ -112,6 +136,12 @@
     --border: 215 30% 20%;
     --input: 215 30% 20%;
     --ring: 190 100% 50%;
+    --sidebar: 220 40% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-border: 215 30% 20%;
+    --sidebar-accent: 215 30% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-ring: 190 100% 50%;
   }
 }
 

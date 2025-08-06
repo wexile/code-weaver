@@ -5,12 +5,10 @@ import React, { useState, useCallback, useEffect } from "react";
 import AppHeader from "@/components/ide/app-header";
 import FileExplorer from "@/components/ide/file-explorer";
 import EditorPanel from "@/components/ide/editor-panel";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import SettingsPanel from "@/components/ide/settings-panel";
 import { type FileSystemNode, type FileNode, type FolderNode } from "@/lib/file-system";
 import { nanoid } from 'nanoid';
 import { useToast } from "@/hooks/use-toast";
-import WelcomeScreen from "@/components/welcome-screen";
-import { generateProjectFromLanguages } from "@/lib/templates";
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { NewFolderDialog } from "./ide/new-folder-dialog";
@@ -19,6 +17,10 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getProjectById, updateProject } from "@/lib/api";
 import { DeleteConfirmationDialog } from "./ide/delete-confirmation-dialog";
+import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useTheme } from "@/hooks/use-theme";
+import { LogoIcon } from "@/components/icons/logo";
 
 
 export type OpenFile = {
@@ -64,7 +66,7 @@ export const getLanguageFromExtension = (filename: string): string => {
   return map[extension] || 'plaintext';
 };
 
-export default function CodeWeaver() {
+function CodeWeaverContent() {
   const { toast } = useToast();
   const { token, loading: authLoading, logout } = useAuth();
   const router = useRouter();
@@ -83,6 +85,7 @@ export default function CodeWeaver() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [nodeToDelete, setNodeToDelete] = useState<{id: string, name: string} | null>(null);
   const [currentNodeParentId, setCurrentNodeParentId] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const findFirstFile = (node: FileSystemNode): FileNode | null => {
       if (node.type === 'file') {
@@ -476,7 +479,7 @@ export default function CodeWeaver() {
   const activeFile = openFiles.find(f => f.id === activeFileId);
 
   if (isLoading || authLoading || !fileSystemState) {
-    return <div className="flex h-screen w-full items-center justify-center bg-background">Loading project...</div>;
+    return <div className="flex h-screen w-full items-center justify-center bg-background"><div className="flex flex-col items-center gap-4"><LogoIcon className="w-16 h-16 text-accent animate-pulse" /><p>Loading project...</p></div></div>;
   }
 
   return (
@@ -498,38 +501,59 @@ export default function CodeWeaver() {
         itemName={nodeToDelete?.name || ''}
       />
       <div className={`flex flex-col h-screen bg-background text-foreground font-sans antialiased`}>
-        <AppHeader 
-            onDownload={handleDownload} 
-            onSave={handleSave}
-            onLogout={handleLogout}
-        />
-        <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
-          <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="min-w-[16rem]">
-            <aside className="w-full h-full bg-card border-r border-border overflow-y-auto">
-              <FileExplorer 
-                fileTree={fileSystemState} 
-                onFileSelect={handleFileSelect}
-                onCreateNode={requestCreateNode}
-                onDeleteNode={requestDeleteNode} 
-                onMoveNode={handleMoveNode}
-              />
-            </aside>
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel defaultSize={80}>
-            <main className="flex-1 flex flex-col overflow-hidden h-full">
-              <EditorPanel
-                openFiles={openFiles}
-                activeFile={activeFile}
-                onTabChange={setActiveFileId}
-                onCloseTab={handleCloseTab}
-                fileContents={fileContents}
-                onContentChange={handleContentChange}
-              />
-            </main>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        <SidebarProvider>
+          <AppHeader 
+              projectName={projectState?.name}
+              onDownload={handleDownload} 
+              onSave={handleSave}
+              onLogout={handleLogout}
+              onToggleSettings={() => setIsSettingsOpen(p => !p)}
+          />
+          <div className="flex flex-1 overflow-hidden">
+             <Sidebar collapsible="icon" className="group-data-[collapsible=icon]:-ml-2">
+                <ScrollArea className="h-full">
+                  <FileExplorer 
+                    fileTree={fileSystemState} 
+                    onFileSelect={handleFileSelect}
+                    onCreateNode={requestCreateNode}
+                    onDeleteNode={requestDeleteNode} 
+                    onMoveNode={handleMoveNode}
+                  />
+                </ScrollArea>
+              </Sidebar>
+            <SidebarInset className="p-0 m-0 min-h-0 rounded-none shadow-none">
+              <main className="flex-1 flex flex-col overflow-hidden h-full">
+                <EditorPanel
+                  openFiles={openFiles}
+                  activeFile={activeFile}
+                  onTabChange={setActiveFileId}
+                  onCloseTab={handleCloseTab}
+                  fileContents={fileContents}
+                  onContentChange={handleContentChange}
+                />
+              </main>
+            </SidebarInset>
+            {isSettingsOpen && <SettingsPanel onClose={() => setIsSettingsOpen(false)} />}
+          </div>
+        </SidebarProvider>
       </div>
     </>
   );
 }
+
+export default function CodeWeaver() {
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    document.body.classList.remove('light', 'dark', 'theme-rose', 'theme-ocean');
+    if (theme === 'light' || theme === 'dark') {
+      document.body.classList.add(theme);
+    } else {
+      document.body.classList.add('dark', `theme-${theme}`);
+    }
+  }, [theme]);
+
+  return <CodeWeaverContent />;
+}
+
+    
