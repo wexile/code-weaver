@@ -1,0 +1,12 @@
+meta:
+  environment: node
+  toolchain:
+    name: next
+    version: 20
+build:
+  script:
+    - npm install
+    - npm run build
+run:
+  script: npm run start
+  port: 3000
