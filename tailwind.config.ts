@@ -67,23 +67,37 @@ export default {
         'accordion-down': {
           from: {
             height: '0',
+            opacity: '0',
           },
           to: {
             height: 'var(--radix-accordion-content-height)',
+            opacity: '1',
           },
         },
         'accordion-up': {
           from: {
             height: 'var(--radix-accordion-content-height)',
+            opacity: '1',
           },
           to: {
             height: '0',
+            opacity: '0',
           },
         },
+        'fade-in': {
+            from: { opacity: '0' },
+            to: { opacity: '1' },
+        },
+        'spin-slow': {
+            from: { transform: 'rotate(0deg)' },
+            to: { transform: 'rotate(360deg)' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'fade-in': 'fade-in 0.3s ease-in-out',
+        'spin-slow': 'spin-slow 3s linear infinite',
       },
     },
   },

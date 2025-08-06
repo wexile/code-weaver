@@ -1,4 +1,6 @@
-import { File, FileCode2, FileJson, FileText, Settings, Database } from 'lucide-react';
+
+import { File, FileCode2, FileJson, FileText, Settings, Database, FileCode, FileImage, FileVideo, Music, Archive, Puzzle, TestTube, GitMerge, Lock, Key, Shield, Component, FileTerminal, Binary, Layout, Route, Info, FileArchive, FileAudio, FileBadge, FileBox, FileCheck, FileCog, FileDiff, FileDown, FileHeart, FileKey, FileLock, FileQuestion, FileSearch, FileSignature, FileSymlink, FileUp, FileVideo2, FileVolume, FileWarning, FileX, Files } from 'lucide-react';
+import { useIcon } from '@/hooks/theme-provider';
 
 // Using inline SVGs for language-specific icons for better visuals
 const CSharpIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -56,48 +58,162 @@ type FileIconProps = {
   className?: string;
 };
 
-export default function FileIcon({ filename, className }: FileIconProps) {
-  const extension = filename.split('.').pop()?.toLowerCase();
+const defaultIcons: Record<string, (props: any) => JSX.Element> = {
+    html: HtmlIcon,
+    css: CssIcon,
+    js: JsIcon,
+    jsx: FileCode2,
+    ts: TsIcon,
+    tsx: TsIcon,
+    py: PythonIcon,
+    json: FileJson,
+    md: FileText,
+    toml: FileText,
+    csproj: FileText,
+    cs: CSharpIcon,
+    'c++': CppIcon,
+    cpp: CppIcon,
+    h: CppIcon,
+    c: CIcon,
+    rs: RustIcon,
+    db: Database,
+    sqlite: Database,
+    config: Settings,
+    settings: Settings,
+    yml: Settings,
+    yaml: Settings,
+    default: File,
+};
 
-  switch (extension) {
-    case 'html':
-      return <HtmlIcon className={className} style={{ color: '#E34F26' }} />;
-    case 'css':
-      return <CssIcon className={className} style={{ color: '#1572B6' }} />;
-    case 'js':
-      return <JsIcon className={className} style={{ color: '#F7DF1E' }} />;
-    case 'jsx':
-      return <FileCode2 className={className} style={{ color: '#61DAFB' }} />; // React icon
-    case 'ts':
-    case 'tsx':
-      return <TsIcon className={className} style={{ color: '#3178C6' }} />;
-    case 'py':
-      return <PythonIcon className={className} style={{ color: '#3776AB' }} />;
-    case 'json':
-      return <FileJson className={className} style={{ color: '#F7DF1E' }} />;
-    case 'md':
-    case 'toml':
-    case 'csproj':
-      return <FileText className={className} />;
-    case 'cs':
-      return <CSharpIcon className={className} style={{ color: '#A179D4' }} />;
-    case 'cpp':
-    case 'c++':
-    case 'h':
-        return <CppIcon className={className} style={{ color: '#00599C' }} />;
-    case 'c':
-        return <CIcon className={className} style={{ color: '#A8B9CC' }} />;
-    case 'rs':
-        return <RustIcon className={className} style={{ color: '#DEA584' }} />;
-    case 'db':
-    case 'sqlite':
-        return <Database className={className} style={{ color: '#003B57' }} />;
-    case 'config':
-    case 'settings':
-    case 'yml':
-    case 'yaml':
-        return <Settings className={className} />;
-    default:
-      return <File className={className} />;
+const lucideIcons: Record<string, (props: any) => JSX.Element> = {
+    html: FileCode,
+    css: FileCode,
+    js: FileCode,
+    jsx: FileCode,
+    ts: FileCode,
+    tsx: FileCode,
+    py: FileCode,
+    json: FileJson,
+    md: FileText,
+    cs: FileCode,
+    cpp: FileCode,
+    c: FileCode,
+    rs: FileCode,
+    db: Database,
+    sqlite: Database,
+    jpg: FileImage,
+    jpeg: FileImage,
+    png: FileImage,
+    gif: FileImage,
+    svg: FileImage,
+    mp4: FileVideo,
+    mov: FileVideo,
+    mp3: Music,
+    wav: Music,
+    zip: Archive,
+    rar: Archive,
+    '7z': Archive,
+    'test.js': TestTube,
+    'spec.js': TestTube,
+    'test.ts': TestTube,
+    'spec.ts': TestTube,
+    lock: Lock,
+    key: Key,
+    LICENSE: Shield,
+    component: Component,
+    sh: FileTerminal,
+    bash: FileTerminal,
+    zsh: FileTerminal,
+    bin: Binary,
+    exe: Binary,
+    dll: Binary,
+    layout: Layout,
+    route: Route,
+    info: Info,
+    log: FileText,
+    gitignore: GitMerge,
+    default: File,
+};
+
+// Placeholder for Material Icons using Lucide icons
+const materialIcons: Record<string, (props: any) => JSX.Element> = {
+    ...lucideIcons,
+    html: FileBox,
+    css: FileBox,
+    js: FileBox,
+    ts: FileBox,
+    py: FileBox,
+    zip: FileArchive,
+    mp3: FileAudio,
+    mp4: FileVideo2,
+    default: FileBox,
+};
+
+// Placeholder for Font Awesome Icons using Lucide icons
+const fontawesomeIcons: Record<string, (props: any) => JSX.Element> = {
+    ...lucideIcons,
+    html: FileCode,
+    css: FileCode,
+    js: FileCode,
+    ts: FileCode,
+    json: FileBadge,
+    lock: FileLock,
+    key: FileKey,
+    default: FileQuestion,
+};
+
+
+const getIconSet = (pack: string) => {
+    switch (pack) {
+        case 'lucide':
+            return lucideIcons;
+        case 'material':
+            return materialIcons;
+        case 'fontawesome':
+            return fontawesomeIcons;
+        default:
+            return defaultIcons;
+    }
+}
+
+export default function FileIcon({ filename, className }: FileIconProps) {
+  const { iconPack } = useIcon();
+  const extension = filename.split('.').pop()?.toLowerCase() || '';
+  const iconSet = getIconSet(iconPack);
+
+  let IconComponent;
+
+  if (iconPack === 'lucide' && filename.includes('test')) {
+    IconComponent = iconSet['test.js'];
+  } else if (iconPack === 'lucide' && filename.includes('LICENSE')) {
+    IconComponent = iconSet['LICENSE'];
+  } else {
+    IconComponent = iconSet[extension] || iconSet['default'];
   }
+  
+  const style = iconPack === 'default' && defaultIcons[extension] ? { color: getColorForExtension(extension) } : {};
+
+  return <IconComponent className={className} style={style} />;
+}
+
+const getColorForExtension = (extension: string) => {
+    switch (extension) {
+        case 'html': return '#E34F26';
+        case 'css': return '#1572B6';
+        case 'js': return '#F7DF1E';
+        case 'jsx': return '#61DAFB';
+        case 'ts':
+        case 'tsx': return '#3178C6';
+        case 'py': return '#3776AB';
+        case 'json': return '#F7DF1E';
+        case 'cs': return '#A179D4';
+        case 'cpp':
+        case 'c++':
+        case 'h': return '#00599C';
+        case 'c': return '#A8B9CC';
+        case 'rs': return '#DEA584';
+        case 'db':
+        case 'sqlite': return '#003B57';
+        default: return undefined;
+    }
 }

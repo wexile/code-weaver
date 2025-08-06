@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../ui/switch';
 import { X } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
-import { useTheme } from '@/hooks/use-theme';
+import { useTheme, useIcon } from '@/hooks/theme-provider';
+import { useEditorSettings } from '@/hooks/editor-settings-provider';
 
 type SettingsPanelProps = {
     onClose: () => void;
@@ -16,7 +17,9 @@ type SettingsPanelProps = {
 
 export default function SettingsPanel({ onClose }: SettingsPanelProps) {
     const { theme, setTheme } = useTheme();
-
+    const { iconPack, setIconPack } = useIcon();
+    const { wordWrap, setWordWrap, minimapEnabled, setMinimapEnabled } = useEditorSettings();
+    
     return (
         <div className="w-80 border-l border-border bg-card text-card-foreground shadow-lg flex flex-col h-full absolute right-0 z-10">
             <div className="flex items-center justify-between p-4 border-b border-border">
@@ -45,12 +48,15 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="icon-pack">Icon Pack</Label>
-                             <Select defaultValue="default" disabled>
+                             <Select value={iconPack} onValueChange={setIconPack}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Select icons" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="default">Default Icons</SelectItem>
+                                    <SelectItem value="default">Default</SelectItem>
+                                    <SelectItem value="lucide">Lucide Icons</SelectItem>
+                                    <SelectItem value="material">Material Icons</SelectItem>
+                                    <SelectItem value="fontawesome">Font Awesome</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -64,7 +70,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                                     Automatically wrap lines.
                                 </span>
                             </Label>
-                            <Switch id="word-wrap" defaultChecked disabled />
+                            <Switch id="word-wrap" checked={wordWrap} onCheckedChange={setWordWrap} />
                         </div>
                         <div className="flex items-center justify-between">
                            <Label htmlFor="minimap" className="flex flex-col space-y-1">
@@ -73,19 +79,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                                    Show the code minimap.
                                 </span>
                             </Label>
-                            <Switch id="minimap" disabled />
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                        <h3 className="font-medium">AI Assistant</h3>
-                        <div className="flex items-center justify-between">
-                             <Label htmlFor="ai-autocomplete" className="flex flex-col space-y-1">
-                                <span>Autocomplete</span>
-                                 <span className="font-normal leading-snug text-muted-foreground text-xs">
-                                    Enable AI code completions.
-                                </span>
-                            </Label>
-                            <Switch id="ai-autocomplete" disabled />
+                            <Switch id="minimap" checked={minimapEnabled} onCheckedChange={setMinimapEnabled} />
                         </div>
                     </div>
                 </div>

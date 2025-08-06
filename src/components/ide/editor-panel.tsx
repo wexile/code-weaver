@@ -1,10 +1,13 @@
+
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, X } from 'lucide-react';
 import type { OpenFile } from '@/components/code-weaver';
-import Editor from '@monaco-editor/react';
+import Editor, { useMonaco } from '@monaco-editor/react';
+import { useTheme } from '@/hooks/theme-provider';
+import { useEditorSettings } from '@/hooks/editor-settings-provider';
 
 type EditorPanelProps = {
   openFiles: OpenFile[];
@@ -15,6 +18,10 @@ type EditorPanelProps = {
   onContentChange: (fileId: string, content: string) => void;
 };
 
+const defineTheme = (monaco: any, themeName: string, themeData: any) => {
+    monaco.editor.defineTheme(themeName, themeData);
+};
+
 export default function EditorPanel({
   openFiles,
   activeFile,
@@ -23,8 +30,35 @@ export default function EditorPanel({
   fileContents,
   onContentChange,
 }: EditorPanelProps) {
+  const { theme } = useTheme();
+  const { wordWrap, minimapEnabled } = useEditorSettings();
+  const monaco = useMonaco();
 
-  if (!activeFile) {
+  useEffect(() => {
+    if (monaco) {
+        // Define custom themes that match globals.css
+        defineTheme(monaco, 'ocean', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [],
+            colors: {
+                'editor.background': '#101720',
+            },
+        });
+        defineTheme(monaco, 'rose', {
+            base: 'vs-dark',
+            inherit: true,
+            rules: [],
+            colors: {
+                'editor.background': '#1C040C',
+            },
+        });
+    }
+  }, [monaco]);
+
+  const editorTheme = theme === 'light' ? 'light' : theme === 'dark' ? 'vs-dark' : theme;
+
+  if (openFiles.length === 0 || !activeFile) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-muted-foreground bg-background">
         <Sparkles className="w-16 h-16 mb-4 text-accent" />
@@ -35,7 +69,7 @@ export default function EditorPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-background">
+    <div className="flex flex-col h-full bg-card">
       <Tabs value={activeFile.id} onValueChange={onTabChange} className="flex flex-col h-full">
         <div className="flex justify-between items-center pr-2 border-b border-border">
           <TabsList className="bg-transparent border-0 p-0 m-0">
@@ -63,20 +97,20 @@ export default function EditorPanel({
         </div>
         
         {openFiles.map((file) => (
-          <TabsContent key={file.id} value={file.id} className="flex-1 mt-0">
+          <TabsContent key={file.id} value={file.id} className="flex-1 mt-0 bg-background animate-fade-in">
             <Editor
               height="100%"
               path={file.path}
               language={file.language}
               value={fileContents.get(file.id) ?? ''}
               onChange={(value) => onContentChange(file.id, value || '')}
-              theme="vs-dark"
+              theme={editorTheme}
               options={{
-                minimap: { enabled: false },
+                minimap: { enabled: minimapEnabled },
                 fontSize: 14,
                 fontFamily: "Fira Code, monospace",
                 scrollBeyondLastLine: false,
-                wordWrap: 'on',
+                wordWrap: wordWrap ? 'on' : 'off',
               }}
             />
           </TabsContent>

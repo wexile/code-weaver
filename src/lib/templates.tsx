@@ -49,7 +49,7 @@ const buildTree = (
             ...item,
             id,
             path,
-            children: item.children ? buildTree(item.children, path, contentMap) : [],
+            children: 'children' in item && Array.isArray(item.children) ? buildTree(item.children, path, contentMap) : [],
         } as FileSystemNode;
     });
 };
@@ -141,3 +141,5 @@ export const generateProjectFromLanguages = (languageIds: string[], projectName:
     
     return { fileTree, initialContent: contentMap };
 };
+
+    

@@ -37,7 +37,7 @@ export default function TerminalPanel() {
   }, [history]);
 
   return (
-    <div className="flex flex-col h-full bg-card font-code text-sm">
+    <div className="flex flex-col h-full bg-card font-mono text-sm">
       <div className="flex items-center h-8 px-4 border-b border-border shrink-0">
         <Terminal className="w-4 h-4 mr-2" />
         <h3 className="font-semibold">Terminal</h3>

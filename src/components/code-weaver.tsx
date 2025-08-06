@@ -5,7 +5,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import AppHeader from "@/components/ide/app-header";
 import FileExplorer from "@/components/ide/file-explorer";
 import EditorPanel from "@/components/ide/editor-panel";
-import SettingsPanel from "@/components/ide/settings-panel";
 import { type FileSystemNode, type FileNode, type FolderNode } from "@/lib/file-system";
 import { nanoid } from 'nanoid';
 import { useToast } from "@/hooks/use-toast";
@@ -17,10 +16,9 @@ import { useAuth } from "@/context/auth-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getProjectById, updateProject } from "@/lib/api";
 import { DeleteConfirmationDialog } from "./ide/delete-confirmation-dialog";
-import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useTheme } from "@/hooks/use-theme";
-import { LogoIcon } from "@/components/icons/logo";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./ui/resizable";
+import { LoadingSpinner } from "@/components/ide/loading-spinner";
+import TerminalPanel from "./ide/terminal-panel";
 
 
 export type OpenFile = {
@@ -85,7 +83,10 @@ function CodeWeaverContent() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [nodeToDelete, setNodeToDelete] = useState<{id: string, name: string} | null>(null);
   const [currentNodeParentId, setCurrentNodeParentId] = useState<string | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // State for terminal visibility
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+
 
   const findFirstFile = (node: FileSystemNode): FileNode | null => {
       if (node.type === 'file') {
@@ -478,8 +479,9 @@ function CodeWeaverContent() {
   
   const activeFile = openFiles.find(f => f.id === activeFileId);
 
+
   if (isLoading || authLoading || !fileSystemState) {
-    return <div className="flex h-screen w-full items-center justify-center bg-background"><div className="flex flex-col items-center gap-4"><LogoIcon className="w-16 h-16 text-accent animate-pulse" /><p>Loading project...</p></div></div>;
+    return <div className="flex h-screen w-full items-center justify-center bg-background"><LoadingSpinner text="Loading project..." /></div>;
   }
 
   return (
@@ -500,60 +502,55 @@ function CodeWeaverContent() {
         onConfirm={handleConfirmDelete}
         itemName={nodeToDelete?.name || ''}
       />
-      <div className={`flex flex-col h-screen bg-background text-foreground font-sans antialiased`}>
-        <SidebarProvider>
-          <AppHeader 
-              projectName={projectState?.name}
-              onDownload={handleDownload} 
-              onSave={handleSave}
-              onLogout={handleLogout}
-              onToggleSettings={() => setIsSettingsOpen(p => !p)}
-          />
-          <div className="flex flex-1 overflow-hidden">
-             <Sidebar collapsible="icon" className="group-data-[collapsible=icon]:-ml-2">
-                <ScrollArea className="h-full">
-                  <FileExplorer 
+      <div className="flex flex-col h-screen bg-background text-foreground font-sans antialiased">
+        <AppHeader 
+            projectName={projectState?.name}
+            onDownload={handleDownload} 
+            onSave={handleSave}
+            onLogout={handleLogout}
+            onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+            isTerminalOpen={isTerminalOpen}
+        />
+        <main className="flex flex-1 overflow-hidden">
+          <ResizablePanelGroup direction="horizontal">
+            <ResizablePanel defaultSize={20} minSize={15}>
+               {fileSystemState && 
+                <FileExplorer 
                     fileTree={fileSystemState} 
                     onFileSelect={handleFileSelect}
                     onCreateNode={requestCreateNode}
                     onDeleteNode={requestDeleteNode} 
                     onMoveNode={handleMoveNode}
-                  />
-                </ScrollArea>
-              </Sidebar>
-            <SidebarInset className="p-0 m-0 min-h-0 rounded-none shadow-none">
-              <main className="flex-1 flex flex-col overflow-hidden h-full">
-                <EditorPanel
-                  openFiles={openFiles}
-                  activeFile={activeFile}
-                  onTabChange={setActiveFileId}
-                  onCloseTab={handleCloseTab}
-                  fileContents={fileContents}
-                  onContentChange={handleContentChange}
-                />
-              </main>
-            </SidebarInset>
-            {isSettingsOpen && <SettingsPanel onClose={() => setIsSettingsOpen(false)} />}
-          </div>
-        </SidebarProvider>
+                />}
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={80}>
+                <ResizablePanelGroup direction="vertical">
+                    <ResizablePanel defaultSize={isTerminalOpen ? 75 : 100}>
+                        <EditorPanel
+                        openFiles={openFiles}
+                        activeFile={activeFile}
+                        onTabChange={setActiveFileId}
+                        onCloseTab={handleCloseTab}
+                        fileContents={fileContents}
+                        onContentChange={handleContentChange}
+                        />
+                    </ResizablePanel>
+                    {isTerminalOpen && <>
+                        <ResizableHandle withHandle />
+                        <ResizablePanel defaultSize={25} minSize={10}>
+                           <TerminalPanel />
+                        </ResizablePanel>
+                    </>}
+                </ResizablePanelGroup>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </main>
       </div>
     </>
   );
 }
 
 export default function CodeWeaver() {
-  const { theme } = useTheme();
-
-  useEffect(() => {
-    document.body.classList.remove('light', 'dark', 'theme-rose', 'theme-ocean');
-    if (theme === 'light' || theme === 'dark') {
-      document.body.classList.add(theme);
-    } else {
-      document.body.classList.add('dark', `theme-${theme}`);
-    }
-  }, [theme]);
-
   return <CodeWeaverContent />;
 }
-
-    

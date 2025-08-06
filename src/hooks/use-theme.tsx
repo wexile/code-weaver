@@ -17,12 +17,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem('app-theme') as Theme | null;
+    const body = document.body;
+    
     if (storedTheme) {
-      setThemeState(storedTheme);
+        setThemeState(storedTheme);
+        body.classList.add(storedTheme);
+    } else {
+        body.classList.add('dark');
     }
+    
+    return () => {
+        body.classList.remove('light', 'dark', 'rose', 'ocean');
+    };
   }, []);
 
   const setTheme = (newTheme: Theme) => {
+    const body = document.body;
+    body.classList.remove('light', 'dark', 'rose', 'ocean');
+    body.classList.add(newTheme);
     setThemeState(newTheme);
     localStorage.setItem('app-theme', newTheme);
   };

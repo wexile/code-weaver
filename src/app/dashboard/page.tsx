@@ -31,6 +31,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { languages, Language } from '@/lib/templates';
+import FileIcon from '@/components/ide/file-icon';
+import { cn } from '@/lib/utils';
+import { LoadingSpinner } from '@/components/ide/loading-spinner';
+
 
 interface Project {
     id: string;
@@ -46,6 +51,7 @@ export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [newProjectName, setNewProjectName] = useState('');
+    const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
 
     useEffect(() => {
@@ -76,6 +82,14 @@ export default function DashboardPage() {
         }
     }, [user, token, toast, logout, router]);
 
+    const handleLanguageSelect = (langId: string) => {
+        setSelectedLanguages(prev =>
+            prev.includes(langId)
+                ? prev.filter(id => id !== langId)
+                : [...prev, langId]
+        );
+    };
+
     const handleCreateProject = async () => {
         if (!newProjectName.trim() || !token) {
             toast({ title: 'Error', description: 'Project name cannot be empty.', variant: 'destructive' });
@@ -83,17 +97,28 @@ export default function DashboardPage() {
         }
 
         try {
-            // A simple default project with a single file.
+            const files = languages
+                .filter(lang => selectedLanguages.includes(lang.id))
+                .map(lang => ({
+                    name: lang.file.name,
+                    content: lang.file.content
+                }));
+            
+            // Add a default file if no languages are selected
+            if (files.length === 0) {
+                files.push({ name: 'index.js', content: 'console.log("Hello, World!");' });
+            }
+
             const newProjectData = {
                 name: newProjectName,
-                files: [
-                    { name: 'index.js', content: 'console.log("Hello, World!");' }
-                ]
+                files: files
             };
+
             const newProject = await createProject(newProjectData, token);
             setProjects(prev => [...prev, newProject]);
             toast({ title: 'Success', description: `Project "${newProjectName}" created.` });
             setNewProjectName('');
+            setSelectedLanguages([]);
             setIsCreateDialogOpen(false);
             router.push(`/?projectId=${newProject.id}`);
         } catch (error) {
@@ -123,7 +148,7 @@ export default function DashboardPage() {
     if (authLoading || isLoading) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-background">
-                <p>Loading dashboard...</p>
+                <LoadingSpinner text="Loading dashboard..." />
             </div>
         );
     }
@@ -146,25 +171,46 @@ export default function DashboardPage() {
                                 <PlusCircle className="mr-2 h-4 w-4" /> New Project
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="sm:max-w-lg">
                             <DialogHeader>
                                 <DialogTitle>Create New Project</DialogTitle>
                                 <DialogDescription>
-                                    Give your new project a name to get started.
+                                    Give your project a name and select initial files.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
                                 <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="name" className="text-right">
-                                    Name
-                                </Label>
-                                <Input
-                                    id="name"
-                                    value={newProjectName}
-                                    onChange={(e) => setNewProjectName(e.target.value)}
-                                    className="col-span-3"
-                                    placeholder="My Awesome Project"
-                                />
+                                    <Label htmlFor="name" className="text-right">
+                                        Name
+                                    </Label>
+                                    <Input
+                                        id="name"
+                                        value={newProjectName}
+                                        onChange={(e) => setNewProjectName(e.target.value)}
+                                        className="col-span-3"
+                                        placeholder="My Awesome Project"
+                                    />
+                                </div>
+                                <div>
+                                    <Label className="text-sm font-medium">Choose Languages (optional)</Label>
+                                    <p className="text-sm text-muted-foreground">Select one or more languages to include starter files.</p>
+                                </div>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-2">
+                                    {languages.map(lang => (
+                                        <button 
+                                            key={lang.id}
+                                            onClick={() => handleLanguageSelect(lang.id)}
+                                            className={cn(
+                                                "flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-colors",
+                                                selectedLanguages.includes(lang.id) 
+                                                    ? 'border-primary bg-primary/10' 
+                                                    : 'border-border hover:border-accent hover:bg-accent/50'
+                                            )}
+                                        >
+                                            <FileIcon filename={lang.file.name} className="w-8 h-8"/>
+                                            <span className="text-xs font-medium text-center">{lang.name}</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                             <DialogFooter>
@@ -227,3 +273,7 @@ export default function DashboardPage() {
         </div>
     );
 }
+
+    
+
+    
