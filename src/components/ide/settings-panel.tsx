@@ -29,6 +29,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                     <X className="w-4 h-4" />
                 </Button>
             </div>
+            
             <ScrollArea className="flex-1">
                 <div className="p-4 space-y-6">
                     <div className="space-y-2">
@@ -54,7 +55,7 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                         </div>
                         <div className="flex items-center justify-between">
                             <Label htmlFor="icon-pack">Icon Pack</Label>
-                             <Select value={iconPack} onValueChange={setIconPack}>
+                            <Select value={iconPack} onValueChange={setIconPack}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Select icons" />
                                 </SelectTrigger>
@@ -67,9 +68,9 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                             </Select>
                         </div>
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                         <h3 className="font-medium">Editor</h3>
-                         <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between">
                             <Label htmlFor="word-wrap" className="flex flex-col space-y-1">
                                 <span>Word Wrap</span>
                                 <span className="font-normal leading-snug text-muted-foreground text-xs">
@@ -79,22 +80,22 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                             <Switch id="word-wrap" checked={wordWrap} onCheckedChange={setWordWrap} />
                         </div>
                         <div className="flex items-center justify-between">
-                           <Label htmlFor="minimap" className="flex flex-col space-y-1">
+                        <Label htmlFor="minimap" className="flex flex-col space-y-1">
                                 <span>Minimap</span>
                                 <span className="font-normal leading-snug text-muted-foreground text-xs">
-                                   Show the code minimap.
+                                Show the code minimap.
                                 </span>
                             </Label>
                             <Switch id="minimap" checked={minimapEnabled} onCheckedChange={setMinimapEnabled} />
                         </div>
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                         <h3 className="font-medium">Gemini AI</h3>
                         <div className="space-y-2">
-                             <Label htmlFor="gemini-api-key" className="text-sm font-normal">
+                            <Label htmlFor="gemini-api-key" className="text-sm font-normal">
                                 API Key
                             </Label>
-                             <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                                 <KeyRound className="w-4 h-4 text-muted-foreground" />
                                 <Input 
                                     id="gemini-api-key"

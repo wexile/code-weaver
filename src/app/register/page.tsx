@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { PoweredBy } from '@/components/powered-by';
+import { useLocalization } from '@/hooks/use-localization';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { appLanguages } from '@/lib/locales';
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -20,23 +23,24 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { t, setLanguage, language } = useLocalization();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
-      toast({ title: 'Error', description: 'Password must be at least 8 characters long.', variant: 'destructive' });
+      toast({ title: t.toast_error_title, description: t.toast_password_length_error, variant: 'destructive' });
       return;
     }
     setIsLoading(true);
     try {
       await register(username, email, password);
-      toast({ title: 'Success', description: 'Registration successful! Please log in.' });
+      toast({ title: t.toast_success_title, description: t.toast_register_success });
       router.push('/login');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast({
-        title: 'Registration Failed',
-        description: error.message || 'An unexpected error occurred. Please try again.',
+        title: t.toast_register_failed_title,
+        description: error.message || t.toast_unexpected_error,
         variant: 'destructive',
       });
     } finally {
@@ -47,15 +51,27 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="flex flex-col items-center">
+            <div className="absolute top-4 right-4">
+                <Select value={language} onValueChange={setLanguage}>
+                    <SelectTrigger className="w-[120px]">
+                        <SelectValue placeholder="Language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {appLanguages.map(lang => (
+                            <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+            </div>
             <Card className="w-full max-w-sm">
                 <CardHeader>
-                <CardTitle className="text-2xl">Register</CardTitle>
-                <CardDescription>Create a new account to start saving your projects.</CardDescription>
+                <CardTitle className="text-2xl">{t.register_title}</CardTitle>
+                <CardDescription>{t.register_desc}</CardDescription>
                 </CardHeader>
                 <form onSubmit={handleSubmit}>
                 <CardContent className="grid gap-4">
                     <div className="grid gap-2">
-                    <Label htmlFor="username">Username</Label>
+                    <Label htmlFor="username">{t.form_username_label}</Label>
                     <Input
                         id="username"
                         type="text"
@@ -66,7 +82,7 @@ export default function RegisterPage() {
                     />
                     </div>
                     <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t.form_email_label}</Label>
                     <Input
                         id="email"
                         type="email"
@@ -77,7 +93,7 @@ export default function RegisterPage() {
                     />
                     </div>
                     <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">{t.form_password_label}</Label>
                     <Input 
                         id="password" 
                         type="password" 
@@ -89,12 +105,12 @@ export default function RegisterPage() {
                 </CardContent>
                 <CardFooter className="flex-col gap-4">
                     <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Creating Account...' : 'Create Account'}
+                    {isLoading ? t.register_button_loading : t.register_button}
                     </Button>
                     <div className="mt-4 text-center text-sm">
-                    Already have an account?{' '}
+                    {t.register_has_account_text}{' '}
                     <Link href="/login" className="underline">
-                        Sign in
+                        {t.register_has_account_link}
                     </Link>
                     </div>
                 </CardFooter>

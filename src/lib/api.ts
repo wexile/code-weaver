@@ -1,36 +1,38 @@
 
+
 const API_URL = 'https://code-weaver-server-production.up.railway.app';
 
 async function createApiRequest(path: string, options: RequestInit) {
+    const { token, ...restOptions } = options.headers ? (options.headers as any) : { token: null };
+    
+    const headers = new Headers(restOptions);
+    if (token) {
+        headers.append('Authorization', `Bearer ${token}`);
+    }
+    
     try {
-        const response = await fetch(`${API_URL}${path}`, options);
+        const response = await fetch(`${API_URL}${path}`, { ...options, headers });
 
         if (!response.ok) {
             let errorData;
             try {
-                 // Try to parse a JSON error response from the server
                 errorData = await response.json();
             } catch (e) {
-                // If the server returns a non-JSON error (e.g., plain text)
                 const errorText = await response.text();
                 throw new Error(errorText || `HTTP error! status: ${response.status}`);
             }
-            // Throw the specific error message from the server's JSON response
             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
 
-        // Handle successful responses with no content (like DELETE)
         if (response.status === 204) {
             return;
         }
 
         return response.json();
     } catch (error) {
-        // This catches network errors (like CORS, DNS, or server unreachable)
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
              throw new Error('Network Error: Failed to fetch. This is likely a CORS issue or the server is unreachable.');
         }
-        // Re-throw errors from the response handling above or other unexpected errors
         throw error;
     }
 }
@@ -64,6 +66,10 @@ export const getProjects = (token: string) => {
     return createApiRequest('/projects', {
         headers: { 'Authorization': `Bearer ${token}` },
     });
+};
+
+export const getPublicProjects = () => {
+    return createApiRequest('/public/projects', {});
 };
 
 export const getProjectById = (id: string, token: string) => {
@@ -110,3 +116,58 @@ export const deleteProject = (id: string, token: string) => {
         headers: { 'Authorization': `Bearer ${token}` },
     });
 };
+
+// Project Sharing and Settings
+export interface ProjectSettings {
+    isPublic: boolean;
+}
+
+export const getProjectSettings = (projectId: string, token: string) => {
+    return createApiRequest(`/projects/${projectId}/settings`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+};
+
+export const updateProjectSettings = (projectId: string, settings: ProjectSettings, token: string) => {
+     return createApiRequest(`/projects/${projectId}/settings`, {
+        method: 'PUT',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify(settings),
+    });
+};
+
+export const getContributors = (projectId: string, token: string) => {
+     return createApiRequest(`/projects/${projectId}/contributors`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+};
+
+export const addContributor = (projectId: string, email: string, token: string) => {
+    return createApiRequest(`/projects/${projectId}/contributors`, {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ email }),
+    });
+};
+
+export const removeContributor = (projectId: string, contributorId: string, token: string) => {
+    return createApiRequest(`/projects/${projectId}/contributors/${contributorId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+};
+
+// Github
+export const getGithubRepoContents = async (owner: string, repo: string, path: string = '') => {
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch repo contents: ${response.statusText}`);
+    }
+    return response.json();
+}

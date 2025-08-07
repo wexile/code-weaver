@@ -14,6 +14,17 @@ export interface Language {
     }
 }
 
+export interface ProjectTemplate {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    files: Array<{
+        name: string;
+        content: string;
+    }>;
+}
+
 // A recursive function to build the file system tree, assigning unique IDs and paths.
 const buildTree = (
     items: (Omit<FileSystemNode, 'id' | 'path' | 'children' | 'language' | 'content'> & { content?: string })[],
@@ -111,33 +122,153 @@ export const languages: Language[] = [
     },
 ];
 
-export const generateProjectFromLanguages = (languageIds: string[], projectName: string): { fileTree: FolderNode, initialContent: Map<string, string> } => {
-    const selectedLanguages = languages.filter(lang => languageIds.includes(lang.id));
+export const projectTemplates: ProjectTemplate[] = [
+    {
+        id: 'react-vite',
+        name: 'React App (Vite)',
+        description: 'A basic React project setup with Vite.',
+        icon: 'react,vite',
+        files: [
+            {
+                name: 'index.html',
+                content: `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite + React</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>`
+            },
+            {
+                name: 'package.json',
+                content: `{
+  "name": "react-vite-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.3",
+    "vite": "^4.4.5"
+  }
+}`
+            },
+            {
+                name: 'src/main.jsx',
+                content: `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
 
-    if (selectedLanguages.length === 0) {
-        // Fallback to an empty project if none are selected
-        return { 
-            fileTree: { id: 'root', name: projectName, type: 'folder', path: 'root', children: [] },
-            initialContent: new Map()
-        };
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)`
+            },
+            {
+                name: 'src/App.jsx',
+                content: `function App() {
+  return (
+    <>
+      <h1>Hello, React!</h1>
+    </>
+  )
+}
+
+export default App`
+            }
+        ]
+    },
+    {
+        id: 'node-express',
+        name: 'Node.js Express Server',
+        description: 'A basic Express.js server.',
+        icon: 'nodejs,express',
+        files: [
+            {
+                name: 'package.json',
+                content: `{
+  "name": "express-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}`
+            },
+            {
+                name: 'server.js',
+                content: `const express = require('express');
+const app = express();
+const port = 3000;
+
+app.get('/', (req, res) => {
+  res.send('Hello World from Express!');
+});
+
+app.listen(port, () => {
+  console.log(\`Server listening at http://localhost:\${port}\`);
+});`
+            },
+            {
+                name: 'README.md',
+                content: `# Express Server\n\nTo run this server, open the terminal and type:\n\n1. \`npm install\`\n2. \`npm start\`\n`
+            }
+        ]
+    },
+    {
+        id: 'static-website',
+        name: 'Static Website',
+        description: 'A basic HTML, CSS, and JavaScript setup.',
+        icon: 'html,css,js',
+        files: [
+            {
+                name: 'index.html',
+                content: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static Website</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <h1>Welcome to My Website</h1>
+    <script src="js/script.js"></script>
+</body>
+</html>`
+            },
+            {
+                name: 'css/style.css',
+                content: `body {
+    font-family: sans-serif;
+    display: grid;
+    place-items: center;
+    height: 100vh;
+    margin: 0;
+}`
+            },
+            {
+                name: 'js/script.js',
+                content: `console.log("Website loaded!");`
+            }
+        ]
     }
-
-    const filesToCreate = selectedLanguages.map(lang => ({
-        name: lang.file.name,
-        type: 'file',
-        content: lang.file.content
-    }));
-
-    const contentMap = new Map<string, string>();
-    const children = buildTree(filesToCreate as any, 'root', contentMap);
-
-    const fileTree: FolderNode = {
-        id: 'root',
-        name: projectName,
-        type: 'folder',
-        path: 'root',
-        children: children,
-    };
-    
-    return { fileTree, initialContent: contentMap };
-};
+];

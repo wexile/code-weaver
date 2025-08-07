@@ -1,11 +1,12 @@
 
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, X } from 'lucide-react';
 import type { OpenFile } from '@/components/code-weaver';
-import Editor, { useMonaco } from '@monaco-editor/react';
+import Editor, { useMonaco, type Monaco } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import { useTheme } from '@/hooks/theme-provider';
 import { useEditorSettings } from '@/hooks/editor-settings-provider';
 
@@ -16,9 +17,10 @@ type EditorPanelProps = {
   onCloseTab: (fileId: string) => void;
   fileContents: Map<string, string>;
   onContentChange: (fileId: string, content: string) => void;
+  onRefactorRequest: (code: string, onApply: (newCode: string) => void) => void;
 };
 
-const defineTheme = (monaco: any, themeName: string, themeData: any) => {
+const defineTheme = (monaco: Monaco, themeName: string, themeData: any) => {
     monaco.editor.defineTheme(themeName, themeData);
 };
 
@@ -29,10 +31,12 @@ export default function EditorPanel({
   onCloseTab,
   fileContents,
   onContentChange,
+  onRefactorRequest,
 }: EditorPanelProps) {
   const { theme } = useTheme();
   const { wordWrap, minimapEnabled } = useEditorSettings();
   const monaco = useMonaco();
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
   useEffect(() => {
     if (monaco) {
@@ -123,6 +127,32 @@ export default function EditorPanel({
     }
   }, [monaco]);
 
+  const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor, m: Monaco) => {
+    editorRef.current = editor;
+    editor.addAction({
+        id: 'refactor-with-ai',
+        label: 'Refactor with AI',
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.5,
+        keybindings: [m.KeyMod.CtrlCmd | m.KeyMod.Shift | m.KeyCode.KeyR],
+        precondition: 'editorHasSelection',
+        run: (ed) => {
+            const model = ed.getModel();
+            const selection = ed.getSelection();
+            if (model && selection) {
+                const selectedText = model.getValueInRange(selection);
+                const onApply = (newCode: string) => {
+                    ed.executeEdits('ai-refactor', [{
+                        range: selection,
+                        text: newCode,
+                    }]);
+                };
+                onRefactorRequest(selectedText, onApply);
+            }
+        },
+    });
+  };
+
   const editorTheme = theme === 'light' ? 'light' : theme === 'dark' ? 'vs-dark' : theme;
 
   if (openFiles.length === 0 || !activeFile) {
@@ -172,6 +202,7 @@ export default function EditorPanel({
               value={fileContents.get(file.id) ?? ''}
               onChange={(value) => onContentChange(file.id, value || '')}
               theme={editorTheme}
+              onMount={handleEditorDidMount}
               options={{
                 minimap: { enabled: minimapEnabled },
                 fontSize: 14,

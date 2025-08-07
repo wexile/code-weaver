@@ -1,8 +1,8 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Sparkles, Send } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Sparkles, Send, Wand2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -15,6 +15,9 @@ import { cn } from '@/lib/utils';
 import { useEditorSettings } from '@/hooks/editor-settings-provider';
 import { GeminiStar } from '../icons/gemini-star';
 import GeminiLoadingAnimation from './gemini-loading-animation';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 type Message = {
     id: string;
@@ -26,6 +29,7 @@ type AiChatPanelProps = {
     fileSystem: FolderNode;
     fileContents: Map<string, string>;
     openFiles: OpenFile[];
+    onApplyChange: (filePath: string, newContent: string) => void;
 };
 
 const welcomeMessage: Message = {
@@ -34,7 +38,24 @@ const welcomeMessage: Message = {
     content: "Hello! I'm Gemini, your AI coding assistant. To get started, please go to settings and provide your Gemini API key. I can see your open files and file structure to help you with your project."
 };
 
-export default function AiChatPanel({ fileSystem, fileContents, openFiles }: AiChatPanelProps) {
+const languages = [
+    { value: 'en', label: 'English' },
+    { value: 'ru', label: 'Russian' },
+    { value: 'es', label: 'Spanish' },
+    { value: 'fr', label: 'French' },
+    { value: 'de', label: 'German' },
+    { value: 'ja', label: 'Japanese' },
+    { value: 'ko', label: 'Korean' },
+    { value: 'pt', label: 'Portuguese' },
+    { value: 'zh', label: 'Chinese' },
+];
+
+const extractFilePath = (text: string): string | null => {
+    const match = text.match(/- File: `(.+?)`/);
+    return match ? match[1] : null;
+};
+
+export default function AiChatPanel({ fileSystem, fileContents, openFiles, onApplyChange }: AiChatPanelProps) {
     const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +66,10 @@ export default function AiChatPanel({ fileSystem, fileContents, openFiles }: AiC
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            setUserLanguage(window.navigator.language);
+            const browserLang = window.navigator.language.split('-')[0];
+            if (languages.some(l => l.value === browserLang)) {
+                 setUserLanguage(browserLang);
+            }
         }
     }, []);
 
@@ -60,7 +84,9 @@ export default function AiChatPanel({ fileSystem, fileContents, openFiles }: AiC
     };
 
     const buildPromptContext = useCallback(() => {
+        // Use the project name as the root for a more intuitive path
         const fileSystemString = stringifyFileSystem(fileSystem);
+
         const openFilesContent = openFiles
             .map(file => `
 ---
@@ -92,8 +118,11 @@ ${fileContents.get(file.id) || ''}
 
             Based on all this information, please provide a helpful and concise response.
             Use Markdown for formatting, especially for code blocks.
-            If you are suggesting code changes, be explicit about which file you are modifying.
-            Always be polite.
+            
+            IMPORTANT: If you are suggesting code changes or creating new code for a file, you MUST specify the file path.
+            Use the following format IMMEDIATELY BEFORE the code block:
+            - File: \`src/app/page.tsx\`
+            The path should be the full path from the project root.
         `;
     }, [fileSystem, openFiles, fileContents]);
 
@@ -172,11 +201,80 @@ ${fileContents.get(file.id) || ''}
         }
     }, [messages, isLoading]);
 
+    const AiMessageContent = ({ content }: { content: string }) => {
+        const filePath = useMemo(() => extractFilePath(content), [content]);
+
+        return (
+            <div className="w-full space-y-2">
+                <ReactMarkdown
+                    className="prose prose-sm dark:prose-invert prose-p:my-0 prose-headings:my-2 prose-blockquote:my-2 prose-ol:my-2 prose-ul:my-2 prose-pre:bg-transparent prose-pre:p-0"
+                    components={{
+                        pre({ node, ...props }) {
+                            const codeElement = node.children[0] as any;
+                            const code = codeElement.children[0].value;
+                            const language = codeElement.properties.className?.[0]?.replace('language-', '') || 'plaintext';
+
+                            if (filePath) {
+                                return (
+                                    <div className="relative my-2 rounded-md bg-background">
+                                        <div className="p-2 border-b border-border">
+                                            <p className="text-xs text-muted-foreground">{filePath}</p>
+                                        </div>
+                                        <SyntaxHighlighter language={language} style={vscDarkPlus} customStyle={{ margin: 0, padding: '1rem' }}>
+                                            {String(code).replace(/\n$/, '')}
+                                        </SyntaxHighlighter>
+                                        <div className="p-2 border-t border-border">
+                                            <Button size="sm" variant="secondary" onClick={() => onApplyChange(filePath, code)}>
+                                                <Wand2 className="mr-2 h-4 w-4"/>
+                                                Apply to {filePath.split('/').pop()}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )
+                            }
+                            
+                            // Default code block rendering if no file path
+                             return (
+                                <div className="my-2 overflow-hidden rounded-md bg-background">
+                                     <SyntaxHighlighter language={language} style={vscDarkPlus} customStyle={{ margin: 0, padding: '1rem' }}>
+                                        {String(code).replace(/\n$/, '')}
+                                    </SyntaxHighlighter>
+                                </div>
+                             )
+                        },
+                         p(props) {
+                             const childText = props.children?.[0];
+                             // Hide the file path paragraph from the main text
+                             if (typeof childText === 'string' && childText.includes('- File:')) {
+                                return null;
+                             }
+                             return <p {...props} />;
+                         }
+                    }}
+                >
+                    {content}
+                </ReactMarkdown>
+            </div>
+        );
+    };
+
     return (
-        <div className="flex flex-col h-full bg-card font-sans text-sm border-l border-border">
-            <div className="flex items-center h-12 px-4 border-b border-border shrink-0">
-                <Sparkles className="w-5 h-5 mr-2" />
-                <h3 className="text-lg font-semibold">Gemini</h3>
+        <div className="flex flex-col h-full font-sans border-l bg-card text-sm border-border">
+            <div className="flex items-center justify-between h-12 px-4 border-b shrink-0 border-border">
+                <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5" />
+                    <h3 className="text-lg font-semibold">Gemini</h3>
+                </div>
+                <Select value={userLanguage} onValueChange={setUserLanguage}>
+                    <SelectTrigger className="w-[140px] h-8 text-xs">
+                        <SelectValue placeholder="Select language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {languages.map(lang => (
+                             <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
                 <div className="p-4 space-y-4">
@@ -188,14 +286,15 @@ ${fileContents.get(file.id) || ''}
                                 </Avatar>
                             )}
                             <div className={cn(
-                                "max-w-[85%] rounded-lg p-3 text-sm", 
+                                "max-w-[85%] rounded-lg p-3 text-sm flex", 
                                 message.role === 'user' 
                                     ? 'bg-primary text-primary-foreground' 
                                     : 'bg-muted'
                             )}>
-                               <ReactMarkdown className="prose prose-sm dark:prose-invert prose-p:my-0 prose-headings:my-2 prose-blockquote:my-2 prose-ol:my-2 prose-ul:my-2 prose-pre:bg-background prose-pre:p-2 prose-pre:rounded-md">
-                                    {message.content}
-                                </ReactMarkdown>
+                               {message.role === 'model' 
+                                ? <AiMessageContent content={message.content} />
+                                : <p>{message.content}</p> 
+                               }
                             </div>
                             {message.role === 'user' && (
                                 <Avatar className="w-8 h-8 border">

@@ -20,6 +20,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./ui/resiz
 import { LoadingSpinner } from "@/components/ide/loading-spinner";
 import TerminalPanel from "./ide/terminal-panel";
 import AiChatPanel from "./ide/ai-chat-panel";
+import RefactorDialog from "./ide/refactor-dialog";
+import { useEditorSettings } from "@/hooks/editor-settings-provider";
 
 
 export type OpenFile = {
@@ -46,6 +48,20 @@ const findNodeAndParent = (root: FolderNode, id: string): { node: FileSystemNode
   return { node: null, parent: null };
 };
 
+const findNodeByPath = (root: FolderNode, path: string): FileSystemNode | null => {
+    const queue: FileSystemNode[] = [root];
+    while(queue.length > 0) {
+        const node = queue.shift()!;
+        if (node.path === path) {
+            return node;
+        }
+        if (node.type === 'folder') {
+            queue.push(...node.children);
+        }
+    }
+    return null;
+}
+
 // Helper function to update paths recursively
 const updatePaths = (node: FileSystemNode, newParentPath: string) => {
     node.path = `${newParentPath}/${node.name}`;
@@ -70,6 +86,7 @@ function CodeWeaverContent() {
   const { token, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { geminiApiKey } = useEditorSettings();
 
   const [projectState, setProjectState] = useState<{ id: string; name: string } | null>(null);
   const [fileSystemState, setFileSystemState] = useState<FolderNode | null>(null);
@@ -82,8 +99,10 @@ function CodeWeaverContent() {
   const [isNewFolderDialogOpen, setIsNewFolderDialogOpen] = useState(false);
   const [isNewFileDialogOpen, setIsNewFileDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isRefactorDialogOpen, setIsRefactorDialogOpen] = useState(false);
   const [nodeToDelete, setNodeToDelete] = useState<{id: string, name: string} | null>(null);
   const [currentNodeParentId, setCurrentNodeParentId] = useState<string | null>(null);
+  const [refactorState, setRefactorState] = useState<{ code: string, onApply: (newCode: string) => void } | null>(null);
 
   // State for panel visibility
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
@@ -109,7 +128,7 @@ function CodeWeaverContent() {
         id: 'root',
         name: projectName,
         type: 'folder',
-        path: 'root',
+        path: projectName,
         children: []
     };
 
@@ -168,6 +187,9 @@ function CodeWeaverContent() {
             const { fileTree, contents } = convertApiFilesToFs(projectData.files, projectData.name);
             setFileSystemState(fileTree);
             setFileContents(contents);
+            
+            setOpenFiles([]);
+            setActiveFileId(null);
 
             const firstFile = findFirstFile(fileTree);
             if (firstFile) {
@@ -218,6 +240,30 @@ function CodeWeaverContent() {
   const handleContentChange = useCallback((fileId: string, newContent: string) => {
     setFileContents(prevContents => new Map(prevContents).set(fileId, newContent));
   }, []);
+
+  const handleApplyAiChange = useCallback((filePath: string, newContent: string) => {
+    if (!fileSystemState) return;
+
+    // We need to find the file's ID from its path
+    const fileNode = findNodeByPath(fileSystemState, filePath);
+
+    if (fileNode && fileNode.type === 'file') {
+        handleContentChange(fileNode.id, newContent);
+        handleFileSelect(fileNode as FileNode); // Open the file to show the changes
+        toast({ title: "Changes Applied", description: `File "${fileNode.name}" has been updated.` });
+    } else {
+        toast({ title: "Error Applying Changes", description: `Could not find file at path: ${filePath}`, variant: 'destructive' });
+    }
+}, [fileSystemState, handleContentChange, handleFileSelect, toast]);
+
+  const handleRefactorRequest = useCallback((code: string, onApply: (newCode: string) => void) => {
+    if (!geminiApiKey) {
+        toast({ title: "API Key Required", description: "Please go to Settings to enter your Gemini API key.", variant: "destructive" });
+        return;
+    }
+    setRefactorState({ code, onApply });
+    setIsRefactorDialogOpen(true);
+  }, [geminiApiKey, toast]);
 
   const requestCreateNode = useCallback((type: 'file' | 'folder', parentId: string) => {
     setCurrentNodeParentId(parentId);
@@ -418,18 +464,20 @@ function CodeWeaverContent() {
 
     const convertFsToApiFiles = (node: FolderNode) => {
         const apiFiles: { name: string, content: string }[] = [];
-        const traverse = (currentNode: FileSystemNode) => {
+        const traverse = (currentNode: FileSystemNode, currentPath: string) => {
             if (currentNode.type === 'file') {
-                const relativePath = currentNode.path.substring(currentNode.path.indexOf('/') + 1);
+                const relativePath = `${currentPath}/${currentNode.name}`.substring(1); // remove leading '/'
                 apiFiles.push({
                     name: relativePath,
                     content: fileContents.get(currentNode.id) ?? ''
                 });
             } else if (currentNode.type === 'folder') {
-                currentNode.children.forEach(traverse);
+                const newPath = `${currentPath}/${currentNode.name}`;
+                currentNode.children.forEach(child => traverse(child, newPath));
             }
         };
-        traverse(node);
+        // Start traversal from the children of the root, not the root itself
+        node.children.forEach(child => traverse(child, ''));
         return apiFiles;
     };
 
@@ -529,6 +577,15 @@ function CodeWeaverContent() {
         onConfirm={handleConfirmDelete}
         itemName={nodeToDelete?.name || ''}
       />
+      {refactorState && (
+        <RefactorDialog
+            isOpen={isRefactorDialogOpen}
+            onOpenChange={setIsRefactorDialogOpen}
+            originalCode={refactorState.code}
+            onApply={refactorState.onApply}
+            language={activeFile?.language || 'plaintext'}
+        />
+      )}
       <div className="flex flex-col h-screen bg-background text-foreground font-sans antialiased">
         <AppHeader 
             projectName={projectState?.name}
@@ -563,6 +620,7 @@ function CodeWeaverContent() {
                         onCloseTab={handleCloseTab}
                         fileContents={fileContents}
                         onContentChange={handleContentChange}
+                        onRefactorRequest={handleRefactorRequest}
                         />
                     </ResizablePanel>
                     {isBottomPanelOpen && <>
@@ -584,6 +642,7 @@ function CodeWeaverContent() {
                         fileSystem={fileSystemState}
                         fileContents={fileContents}
                         openFiles={openFiles}
+                        onApplyChange={handleApplyAiChange}
                     />
                 </ResizablePanel>
                 </>
