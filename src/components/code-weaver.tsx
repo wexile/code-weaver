@@ -19,6 +19,7 @@ import { DeleteConfirmationDialog } from "./ide/delete-confirmation-dialog";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./ui/resizable";
 import { LoadingSpinner } from "@/components/ide/loading-spinner";
 import TerminalPanel from "./ide/terminal-panel";
+import AiChatPanel from "./ide/ai-chat-panel";
 
 
 export type OpenFile = {
@@ -84,8 +85,9 @@ function CodeWeaverContent() {
   const [nodeToDelete, setNodeToDelete] = useState<{id: string, name: string} | null>(null);
   const [currentNodeParentId, setCurrentNodeParentId] = useState<string | null>(null);
 
-  // State for terminal visibility
+  // State for panel visibility
   const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
 
 
   const findFirstFile = (node: FileSystemNode): FileNode | null => {
@@ -181,6 +183,19 @@ function CodeWeaverContent() {
     };
     loadProject();
   }, [searchParams, token, router, authLoading, toast]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, []);
 
   const handleFileSelect = useCallback((file: FileNode) => {
     const isAlreadyOpen = openFiles.some(f => f.id === file.id);
@@ -479,10 +494,22 @@ function CodeWeaverContent() {
   
   const activeFile = openFiles.find(f => f.id === activeFileId);
 
+  const toggleBottomPanel = (panel: 'terminal' | 'ai-chat') => {
+    if (panel === 'terminal') {
+        setIsTerminalOpen(!isTerminalOpen);
+        if (isAiChatOpen && !isTerminalOpen) setIsAiChatOpen(false);
+    } else if (panel === 'ai-chat') {
+        setIsAiChatOpen(!isAiChatOpen);
+        if(isTerminalOpen && !isAiChatOpen) setIsTerminalOpen(false);
+    }
+  };
+
 
   if (isLoading || authLoading || !fileSystemState) {
     return <div className="flex h-screen w-full items-center justify-center bg-background"><LoadingSpinner text="Loading project..." /></div>;
   }
+
+  const isBottomPanelOpen = isTerminalOpen;
 
   return (
     <>
@@ -508,8 +535,10 @@ function CodeWeaverContent() {
             onDownload={handleDownload} 
             onSave={handleSave}
             onLogout={handleLogout}
-            onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+            onToggleTerminal={() => toggleBottomPanel('terminal')}
+            onToggleAiChat={() => toggleBottomPanel('ai-chat')}
             isTerminalOpen={isTerminalOpen}
+            isAiChatOpen={isAiChatOpen}
         />
         <main className="flex flex-1 overflow-hidden">
           <ResizablePanelGroup direction="horizontal">
@@ -524,9 +553,9 @@ function CodeWeaverContent() {
                 />}
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={80}>
+            <ResizablePanel defaultSize={isAiChatOpen ? 50: 80}>
                 <ResizablePanelGroup direction="vertical">
-                    <ResizablePanel defaultSize={isTerminalOpen ? 75 : 100}>
+                    <ResizablePanel defaultSize={isBottomPanelOpen ? 75 : 100}>
                         <EditorPanel
                         openFiles={openFiles}
                         activeFile={activeFile}
@@ -536,14 +565,29 @@ function CodeWeaverContent() {
                         onContentChange={handleContentChange}
                         />
                     </ResizablePanel>
-                    {isTerminalOpen && <>
+                    {isBottomPanelOpen && <>
                         <ResizableHandle withHandle />
                         <ResizablePanel defaultSize={25} minSize={10}>
-                           <TerminalPanel />
+                           {isTerminalOpen && <TerminalPanel
+                             fileSystem={fileSystemState}
+                             fileContents={fileContents}
+                           />}
                         </ResizablePanel>
                     </>}
                 </ResizablePanelGroup>
             </ResizablePanel>
+            {isAiChatOpen && (
+                <>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize={30} minSize={20}>
+                    <AiChatPanel 
+                        fileSystem={fileSystemState}
+                        fileContents={fileContents}
+                        openFiles={openFiles}
+                    />
+                </ResizablePanel>
+                </>
+            )}
           </ResizablePanelGroup>
         </main>
       </div>

@@ -160,10 +160,26 @@
 }
 
 @layer base {
+  html, body {
+    @apply w-full h-full overflow-x-hidden;
+  }
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+.animate-progress-bar {
+  animation: progress-bar-keys 2s ease-in-out infinite;
+}
+
+@keyframes progress-bar-keys {
+  0%, 100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
   }
 }

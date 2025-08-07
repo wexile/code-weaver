@@ -6,10 +6,11 @@ import { Button } from '../ui/button';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Switch } from '../ui/switch';
-import { X } from 'lucide-react';
+import { X, KeyRound } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 import { useTheme, useIcon } from '@/hooks/theme-provider';
 import { useEditorSettings } from '@/hooks/editor-settings-provider';
+import { Input } from '../ui/input';
 
 type SettingsPanelProps = {
     onClose: () => void;
@@ -18,7 +19,7 @@ type SettingsPanelProps = {
 export default function SettingsPanel({ onClose }: SettingsPanelProps) {
     const { theme, setTheme } = useTheme();
     const { iconPack, setIconPack } = useIcon();
-    const { wordWrap, setWordWrap, minimapEnabled, setMinimapEnabled } = useEditorSettings();
+    const { wordWrap, setWordWrap, minimapEnabled, setMinimapEnabled, geminiApiKey, setGeminiApiKey } = useEditorSettings();
     
     return (
         <div className="w-80 border-l border-border bg-card text-card-foreground shadow-lg flex flex-col h-full absolute right-0 z-10">
@@ -85,6 +86,25 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                                 </span>
                             </Label>
                             <Switch id="minimap" checked={minimapEnabled} onCheckedChange={setMinimapEnabled} />
+                        </div>
+                    </div>
+                     <div className="space-y-2">
+                        <h3 className="font-medium">Gemini AI</h3>
+                        <div className="space-y-2">
+                             <Label htmlFor="gemini-api-key" className="text-sm font-normal">
+                                API Key
+                            </Label>
+                             <div className="flex items-center gap-2">
+                                <KeyRound className="w-4 h-4 text-muted-foreground" />
+                                <Input 
+                                    id="gemini-api-key"
+                                    type="password"
+                                    value={geminiApiKey}
+                                    onChange={(e) => setGeminiApiKey(e.target.value)}
+                                    placeholder="Enter your Gemini API Key"
+                                    className="flex-1 h-9"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

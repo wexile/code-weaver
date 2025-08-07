@@ -1,188 +1,242 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Bot, User, Send, Loader2, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Sparkles, Send } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-import { continueChat, type ChatInput } from '@/ai/flows/chat';
-import { type OpenFile } from '../code-weaver';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { type FileSystemNode, type FolderNode } from '@/lib/file-system';
+import { type OpenFile } from '@/components/code-weaver';
 import ReactMarkdown from 'react-markdown';
+import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
-
-type AiChatPanelProps = {
-    activeFile?: OpenFile;
-    activeFileContent?: string;
-};
+import { useEditorSettings } from '@/hooks/editor-settings-provider';
+import { GeminiStar } from '../icons/gemini-star';
+import GeminiLoadingAnimation from './gemini-loading-animation';
 
 type Message = {
+    id: string;
     role: 'user' | 'model';
     content: string;
 };
 
-const InitialMessage: Message = {
-    role: 'model',
-    content: "Hello! I'm your Gemini assistant. How can I help you with your project today?",
+type AiChatPanelProps = {
+    fileSystem: FolderNode;
+    fileContents: Map<string, string>;
+    openFiles: OpenFile[];
 };
 
+const welcomeMessage: Message = {
+    id: 'welcome',
+    role: 'model',
+    content: "Hello! I'm Gemini, your AI coding assistant. To get started, please go to settings and provide your Gemini API key. I can see your open files and file structure to help you with your project."
+};
 
-export default function AiChatPanel({ activeFile, activeFileContent }: AiChatPanelProps) {
-  const [messages, setMessages] = useState<Message[]>([InitialMessage]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
+export default function AiChatPanel({ fileSystem, fileContents, openFiles }: AiChatPanelProps) {
+    const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
+    const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+    const { geminiApiKey } = useEditorSettings();
+    const [userLanguage, setUserLanguage] = useState('en');
 
-  useEffect(() => {
-    const fetchKeyAndSetup = () => {
-        const storedKey = localStorage.getItem('gemini-api-key');
-        setApiKey(storedKey);
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setUserLanguage(window.navigator.language);
+        }
+    }, []);
+
+
+    // Function to stringify file system for the prompt
+    const stringifyFileSystem = (node: FileSystemNode, indent = 0): string => {
+        const prefix = '  '.repeat(indent);
+        if (node.type === 'folder') {
+            return `${prefix}- ${node.name}/\n` + node.children.map(child => stringifyFileSystem(child, indent + 1)).join('');
+        }
+        return `${prefix}- ${node.name}\n`;
     };
-    fetchKeyAndSetup();
-    // Listen for API key updates from the settings panel
-    window.addEventListener('apiKeyUpdated', fetchKeyAndSetup);
-    return () => window.removeEventListener('apiKeyUpdated', fetchKeyAndSetup);
-  }, []);
-  
-  useEffect(() => {
-    // Scroll to the bottom when messages change
-    if (scrollAreaRef.current) {
-        scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight });
-    }
-  }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    const buildPromptContext = useCallback(() => {
+        const fileSystemString = stringifyFileSystem(fileSystem);
+        const openFilesContent = openFiles
+            .map(file => `
+---
+File Path: ${file.path}
+Content:
+\`\`\`
+${fileContents.get(file.id) || ''}
+\`\`\`
+---
+`
+            )
+            .join('\n');
+
+        return `
+            You are an expert AI pair programmer and coding assistant named Gemini.
+            You are friendly, helpful, and an expert in software development.
+            Your user is working in a web-based IDE. You have access to their file system structure and the content of their currently open files.
+            Your goal is to help them with their coding tasks. You can answer questions, explain code, suggest improvements, write new code, and identify bugs.
+
+            Here is the context of the user's project:
+
+            File System Structure:
+            \`\`\`
+            ${fileSystemString}
+            \`\`\`
+
+            Currently Open Files:
+            ${openFilesContent || "No files are currently open."}
+
+            Based on all this information, please provide a helpful and concise response.
+            Use Markdown for formatting, especially for code blocks.
+            If you are suggesting code changes, be explicit about which file you are modifying.
+            Always be polite.
+        `;
+    }, [fileSystem, openFiles, fileContents]);
+
+    const handleSendMessage = async () => {
+        if (!input.trim() || isLoading) return;
+        if (!geminiApiKey) {
+            toast({
+                title: 'API Key Required',
+                description: 'Please go to Settings to enter your Gemini API key.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        const userMessage: Message = { id: `msg-${Date.now()}`, role: 'user', content: input };
+        setMessages(prev => [...prev, userMessage]);
+        const currentInput = input;
+        setInput('');
+        setIsLoading(true);
+
+        try {
+            const context = buildPromptContext();
+            
+            const response = await fetch('/api/gemini', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    apiKey: geminiApiKey,
+                    prompt: currentInput,
+                    context: context,
+                    userLanguage: userLanguage,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'An unknown error occurred');
+            }
+
+            const result = await response.json();
+            const text = result.text;
+            
+            const assistantMessage: Message = { id: `msg-${Date.now()}-ai`, role: 'model', content: text };
+            setMessages(prev => [...prev, assistantMessage]);
+
+        } catch (error: any) {
+            console.error("AI agent failed:", error);
+            toast({
+                title: 'Gemini API Error',
+                description: error.message,
+                variant: 'destructive',
+            });
+            // Put the user's message back in the input box on error
+            setInput(currentInput);
+            setMessages(prev => prev.slice(0, -1)); // Remove the user message from chat history
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    };
     
-    if (!apiKey) {
-        toast({
-            title: "API Key Required",
-            description: "Please set your Gemini API key in the settings panel to use the AI chat.",
-            variant: "destructive"
-        });
-        return;
-    }
+    useEffect(() => {
+        if (scrollAreaRef.current) {
+            const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+            if (viewport) {
+                viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+            }
+        }
+    }, [messages, isLoading]);
 
-    const userMessage: Message = { role: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const chatInput: ChatInput = {
-        prompt: input,
-        history: messages.map(m => ({ role: m.role, content: m.content })),
-        context: activeFile ? { fileName: activeFile.name, fileContent: activeFileContent } : undefined,
-      };
-
-      // We need to pass the key for server-side use. This is a simplification.
-      // In a real app, you might have a backend proxy to handle this.
-      const response = await continueChat(chatInput);
-      
-      const modelMessage: Message = { role: 'model', content: response.response };
-      setMessages(prev => [...prev, modelMessage]);
-
-    } catch (error: any) {
-        console.error("AI chat error:", error);
-        toast({
-            title: "AI Error",
-            description: error.message || "An error occurred while talking to the AI.",
-            variant: "destructive"
-        });
-        // Restore user input on error
-        setInput(input);
-        setMessages(prev => prev.slice(0, -1)); // Remove the user's message that failed
-    } finally {
-        setIsLoading(false);
-    }
-  };
-
-  const MarkdownComponents: object = {
-    p: ({ node, ...props }: any) => <p className="mb-2 last:mb-0" {...props} />,
-    ol: ({ node, ...props }: any) => <ol className="list-decimal list-inside my-2" {...props} />,
-    ul: ({ node, ...props }: any) => <ul className="list-disc list-inside my-2" {...props} />,
-    li: ({ node, ...props }: any) => <li className="mb-1" {...props} />,
-    code: ({ node, className, children, ...props }: any) => {
-        const match = /language-(\w+)/.exec(className || '');
-        return match ? (
-            <code className="bg-muted p-1 rounded-md font-mono text-sm">{children}</code>
-        ) : (
-            <div className="my-2 rounded-md bg-muted text-muted-foreground overflow-hidden">
-                <pre className="p-4 text-sm overflow-x-auto">{children}</pre>
+    return (
+        <div className="flex flex-col h-full bg-card font-sans text-sm border-l border-border">
+            <div className="flex items-center h-12 px-4 border-b border-border shrink-0">
+                <Sparkles className="w-5 h-5 mr-2" />
+                <h3 className="text-lg font-semibold">Gemini</h3>
             </div>
-        );
-    },
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-card text-card-foreground">
-      <div className="flex items-center gap-2 p-4 border-b border-border">
-        <Sparkles className="w-5 h-5 text-accent" />
-        <h2 className="text-lg font-semibold">Gemini Help</h2>
-      </div>
-      <ScrollArea className="flex-1" viewportRef={scrollAreaRef}>
-        <div className="p-4 space-y-6">
-            {messages.map((message, index) => (
-                <div key={index} className={cn("flex items-start gap-3", message.role === 'user' && 'justify-end')}>
-                   {message.role === 'model' && (
-                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                           <Bot className="w-5 h-5"/>
-                       </div>
-                   )}
-                   <div className={cn(
-                       "p-3 rounded-lg max-w-sm sm:max-w-md md:max-w-lg text-sm",
-                       message.role === 'model' ? 'bg-muted' : 'bg-primary text-primary-foreground'
-                   )}>
-                        <ReactMarkdown components={MarkdownComponents}>
-                            {message.content}
-                        </ReactMarkdown>
-                   </div>
-                    {message.role === 'user' && (
-                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center">
-                           <User className="w-5 h-5"/>
-                       </div>
-                   )}
+            <ScrollArea className="flex-1" ref={scrollAreaRef}>
+                <div className="p-4 space-y-4">
+                    {messages.map((message) => (
+                        <div key={message.id} className={cn("flex items-start gap-3", message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                             {message.role === 'model' && (
+                                <Avatar className="w-8 h-8 border">
+                                    <AvatarFallback><GeminiStar className="w-5 h-5"/></AvatarFallback>
+                                </Avatar>
+                            )}
+                            <div className={cn(
+                                "max-w-[85%] rounded-lg p-3 text-sm", 
+                                message.role === 'user' 
+                                    ? 'bg-primary text-primary-foreground' 
+                                    : 'bg-muted'
+                            )}>
+                               <ReactMarkdown className="prose prose-sm dark:prose-invert prose-p:my-0 prose-headings:my-2 prose-blockquote:my-2 prose-ol:my-2 prose-ul:my-2 prose-pre:bg-background prose-pre:p-2 prose-pre:rounded-md">
+                                    {message.content}
+                                </ReactMarkdown>
+                            </div>
+                            {message.role === 'user' && (
+                                <Avatar className="w-8 h-8 border">
+                                    <AvatarFallback>You</AvatarFallback>
+                                </Avatar>
+                            )}
+                        </div>
+                    ))}
+                    {isLoading && (
+                         <div className="flex items-start gap-3 justify-start">
+                            <Avatar className="w-8 h-8 border">
+                                 <AvatarFallback><GeminiStar className="w-5 h-5"/></AvatarFallback>
+                            </Avatar>
+                             <div className="bg-muted rounded-lg p-3 text-sm flex items-center w-full max-w-[85%]">
+                                <GeminiLoadingAnimation />
+                            </div>
+                        </div>
+                    )}
                 </div>
-            ))}
-            {isLoading && (
-                <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                        <Bot className="w-5 h-5"/>
-                    </div>
-                    <div className="p-3 rounded-lg bg-muted flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">Thinking...</span>
-                    </div>
+            </ScrollArea>
+            <div className="p-2 border-t border-border">
+                <div className="relative">
+                    <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={!geminiApiKey ? "Please provide an API key in settings" : "Ask Gemini a question..."}
+                        className="pr-16 resize-none"
+                        rows={2}
+                        disabled={isLoading || !geminiApiKey}
+                    />
+                    <Button 
+                        size="icon" 
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-10"
+                        onClick={handleSendMessage}
+                        disabled={isLoading || !input.trim() || !geminiApiKey}
+                    >
+                        {isLoading ? <Sparkles className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4"/>}
+                    </Button>
                 </div>
-            )}
+            </div>
         </div>
-      </ScrollArea>
-      <div className="p-4 border-t border-border">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e as any);
-                }
-            }}
-            placeholder="Ask AI anything about your code..."
-            className="flex-1 resize-none bg-muted focus-visible:ring-1 focus-visible:ring-ring"
-            rows={1}
-            disabled={isLoading}
-          />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
-        </form>
-      </div>
-    </div>
-  );
+    );
 }

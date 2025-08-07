@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -8,6 +9,13 @@ export default {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: '2rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
     extend: {
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
@@ -91,13 +99,18 @@ export default {
         'spin-slow': {
             from: { transform: 'rotate(0deg)' },
             to: { transform: 'rotate(360deg)' },
-        }
+        },
+        'progress-bar-keys': {
+          '0%, 100%': { transform: 'translateX(-100%)' },
+          '50%': { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in': 'fade-in 0.3s ease-in-out',
         'spin-slow': 'spin-slow 3s linear infinite',
+        'progress-bar': 'progress-bar-keys 2s ease-in-out infinite',
       },
     },
   },

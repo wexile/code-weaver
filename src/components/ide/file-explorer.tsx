@@ -15,6 +15,8 @@ import {
 import { ScrollArea } from '../ui/scroll-area';
 import { Button } from '../ui/button';
 import SettingsPanel from './settings-panel';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
+
 
 type FileExplorerProps = {
     fileTree: FolderNodeType;
@@ -87,34 +89,37 @@ const FolderNode = ({ fileTree, node, level, children, onCreateNode, onDeleteNod
   };
 
   return (
-    <div
+    <Collapsible
+      open={isOpen}
+      onOpenChange={setIsOpen}
       draggable={node.id !== fileTree.id}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div
-        className={cn("flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer hover:bg-accent relative group", { "bg-accent": isDragOver })}
-        style={{ paddingLeft: `${level * 1.25}rem` }}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <ChevronRight className={cn("w-4 h-4 transition-transform shrink-0", isOpen && "rotate-90")} />
-        {isOpen ? <FolderOpen className="w-4 h-4 text-accent shrink-0" /> : <Folder className="w-4 h-4 text-accent shrink-0" />}
-        <span className="text-sm font-medium">{node.name}</span>
-        <NodeMenu 
-            onNewFile={() => onCreateNode('file', node.id)}
-            onNewFolder={() => onCreateNode('folder', node.id)}
-            onDelete={() => onDeleteNode(node.id)}
-            isFolder={true}
-            nodeId={node.id}
-            fileTree={fileTree}
-        />
-      </div>
-      <div className={cn("overflow-hidden transition-all duration-300", isOpen ? 'max-h-[1000px] animate-accordion-down' : 'max-h-0 animate-accordion-up')}>
+      <CollapsibleTrigger asChild>
+        <div
+          className={cn("flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer hover:bg-accent relative group", { "bg-accent": isDragOver })}
+          style={{ paddingLeft: `${level * 1.25}rem` }}
+        >
+          <ChevronRight className={cn("w-4 h-4 transition-transform shrink-0", isOpen && "rotate-90")} />
+          {isOpen ? <FolderOpen className="w-4 h-4 text-accent shrink-0" /> : <Folder className="w-4 h-4 text-accent shrink-0" />}
+          <span className="text-sm font-medium">{node.name}</span>
+          <NodeMenu 
+              onNewFile={() => onCreateNode('file', node.id)}
+              onNewFolder={() => onCreateNode('folder', node.id)}
+              onDelete={() => onDeleteNode(node.id)}
+              isFolder={true}
+              nodeId={node.id}
+              fileTree={fileTree}
+          />
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
         {children}
-      </div>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 

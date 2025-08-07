@@ -8,6 +8,8 @@ interface EditorSettings {
   setWordWrap: (enabled: boolean) => void;
   minimapEnabled: boolean;
   setMinimapEnabled: (enabled: boolean) => void;
+  geminiApiKey: string;
+  setGeminiApiKey: (key: string) => void;
 }
 
 const EditorSettingsContext = createContext<EditorSettings | undefined>(undefined);
@@ -15,6 +17,7 @@ const EditorSettingsContext = createContext<EditorSettings | undefined>(undefine
 export function EditorSettingsProvider({ children }: { children: ReactNode }) {
   const [wordWrap, setWordWrapState] = useState<boolean>(true);
   const [minimapEnabled, setMinimapEnabledState] = useState<boolean>(false);
+  const [geminiApiKey, setGeminiApiKeyState] = useState<string>('');
 
   useEffect(() => {
     const storedWordWrap = localStorage.getItem('editor-word-wrap');
@@ -25,6 +28,11 @@ export function EditorSettingsProvider({ children }: { children: ReactNode }) {
     const storedMinimap = localStorage.getItem('editor-minimap');
     if (storedMinimap) {
       setMinimapEnabledState(JSON.parse(storedMinimap));
+    }
+
+    const storedApiKey = localStorage.getItem('gemini-api-key');
+    if (storedApiKey) {
+        setGeminiApiKeyState(storedApiKey);
     }
   }, []);
 
@@ -38,7 +46,12 @@ export function EditorSettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('editor-minimap', JSON.stringify(enabled));
   };
 
-  const value = { wordWrap, setWordWrap, minimapEnabled, setMinimapEnabled };
+  const setGeminiApiKey = (key: string) => {
+    setGeminiApiKeyState(key);
+    localStorage.setItem('gemini-api-key', key);
+  }
+
+  const value = { wordWrap, setWordWrap, minimapEnabled, setMinimapEnabled, geminiApiKey, setGeminiApiKey };
 
   return <EditorSettingsContext.Provider value={value}>{children}</EditorSettingsContext.Provider>;
 }

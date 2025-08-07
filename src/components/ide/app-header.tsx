@@ -1,4 +1,5 @@
-import { Download, Save, LogOut, LayoutDashboard, Terminal } from 'lucide-react';
+
+import { Download, Save, LogOut, LayoutDashboard, Terminal, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '../ui/separator';
 import { useRouter } from 'next/navigation';
@@ -12,15 +13,26 @@ type AppHeaderProps = {
   onLogout: () => void;
   onToggleTerminal: () => void;
   isTerminalOpen: boolean;
+  onToggleAiChat: () => void;
+  isAiChatOpen: boolean;
 };
 
-export default function AppHeader({ projectName, onDownload, onSave, onLogout, onToggleTerminal, isTerminalOpen }: AppHeaderProps) {
+export default function AppHeader({ 
+    projectName, 
+    onDownload, 
+    onSave, 
+    onLogout, 
+    onToggleTerminal, 
+    isTerminalOpen,
+    onToggleAiChat,
+    isAiChatOpen,
+}: AppHeaderProps) {
   const router = useRouter();
 
   return (
     <header className="flex items-center justify-between h-12 px-4 border-b border-border bg-card shadow-sm shrink-0">
       <div className="flex items-center gap-2">
-        <LogoIcon className="w-6 h-6 text-accent" />
+        <LogoIcon className="w-8 h-8 text-primary" />
         <Separator orientation="vertical" className="h-6" />
         <h1 className="text-lg font-semibold text-foreground truncate">
           {projectName || 'Code Weaver'}
@@ -32,6 +44,15 @@ export default function AppHeader({ projectName, onDownload, onSave, onLogout, o
             Dashboard
         </Button>
         <Separator orientation="vertical" className="h-6" />
+        <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={onToggleAiChat}
+            className={cn(isAiChatOpen && 'bg-accent text-accent-foreground')}
+            >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Gemini
+        </Button>
         <Button 
             variant="ghost" 
             size="sm"
