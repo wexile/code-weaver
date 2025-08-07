@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-type Theme = 'dark' | 'light' | 'rose' | 'ocean';
+type Theme = 'dark' | 'light' | 'rose' | 'ocean' | 'solarized-dark' | 'monokai' | 'cobalt';
 type IconPack = 'default' | 'lucide' | 'material' | 'fontawesome';
 
 interface ThemeContextType {
@@ -31,12 +31,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.add(initialTheme);
 
     return () => {
-        document.documentElement.classList.remove('light', 'dark', 'rose', 'ocean');
+        document.documentElement.classList.remove('light', 'dark', 'rose', 'ocean', 'solarized-dark', 'monokai', 'cobalt');
     };
   }, []);
 
   const setTheme = (newTheme: Theme) => {
-    document.documentElement.classList.remove('light', 'dark', 'rose', 'ocean');
+    document.documentElement.classList.remove('light', 'dark', 'rose', 'ocean', 'solarized-dark', 'monokai', 'cobalt');
     document.documentElement.classList.add(newTheme);
     setThemeState(newTheme);
     localStorage.setItem('app-theme', newTheme);

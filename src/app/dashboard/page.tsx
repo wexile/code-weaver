@@ -8,7 +8,7 @@ import { createProject, getProjects, deleteProject } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, LogOut, Trash2 } from 'lucide-react';
+import { PlusCircle, LogOut, Trash2, ArrowLeft } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,10 +31,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { languages, Language } from '@/lib/templates';
+import { languages } from '@/lib/templates';
 import FileIcon from '@/components/ide/file-icon';
 import { cn } from '@/lib/utils';
 import { LoadingSpinner } from '@/components/ide/loading-spinner';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 interface Project {
@@ -43,13 +44,18 @@ interface Project {
     updatedAt: string;
 }
 
+type CreationStep = 'name' | 'languages';
+
 export default function DashboardPage() {
     const { user, token, logout, loading: authLoading } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // State for the creation dialog
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+    const [creationStep, setCreationStep] = useState<CreationStep>('name');
     const [newProjectName, setNewProjectName] = useState('');
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
 
@@ -81,6 +87,15 @@ export default function DashboardPage() {
             fetchProjects();
         }
     }, [user, token, toast, logout, router]);
+    
+    // Reset dialog state when it's closed
+    useEffect(() => {
+        if (!isCreateDialogOpen) {
+            setCreationStep('name');
+            setNewProjectName('');
+            setSelectedLanguages([]);
+        }
+    }, [isCreateDialogOpen]);
 
     const handleLanguageSelect = (langId: string) => {
         setSelectedLanguages(prev =>
@@ -90,22 +105,22 @@ export default function DashboardPage() {
         );
     };
 
-    const handleCreateProject = async () => {
+    const handleCreateProject = async (skipLanguageSelection = false) => {
         if (!newProjectName.trim() || !token) {
             toast({ title: 'Error', description: 'Project name cannot be empty.', variant: 'destructive' });
             return;
         }
 
         try {
-            const files = languages
+            const files = skipLanguageSelection ? [] : languages
                 .filter(lang => selectedLanguages.includes(lang.id))
                 .map(lang => ({
                     name: lang.file.name,
                     content: lang.file.content
                 }));
             
-            // Add a default file if no languages are selected
-            if (files.length === 0) {
+            // Add a default file if no name is given but the creation is triggered.
+            if (files.length === 0 && selectedLanguages.length === 0) {
                 files.push({ name: 'index.js', content: 'console.log("Hello, World!");' });
             }
 
@@ -117,9 +132,7 @@ export default function DashboardPage() {
             const newProject = await createProject(newProjectData, token);
             setProjects(prev => [...prev, newProject]);
             toast({ title: 'Success', description: `Project "${newProjectName}" created.` });
-            setNewProjectName('');
-            setSelectedLanguages([]);
-            setIsCreateDialogOpen(false);
+            setIsCreateDialogOpen(false); // Close dialog on success
             router.push(`/?projectId=${newProject.id}`);
         } catch (error) {
             console.error('Failed to create project', error);
@@ -171,51 +184,75 @@ export default function DashboardPage() {
                                 <PlusCircle className="mr-2 h-4 w-4" /> New Project
                             </Button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-lg">
-                            <DialogHeader>
-                                <DialogTitle>Create New Project</DialogTitle>
-                                <DialogDescription>
-                                    Give your project a name and select initial files.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="name" className="text-right">
-                                        Name
-                                    </Label>
-                                    <Input
-                                        id="name"
-                                        value={newProjectName}
-                                        onChange={(e) => setNewProjectName(e.target.value)}
-                                        className="col-span-3"
-                                        placeholder="My Awesome Project"
-                                    />
-                                </div>
-                                <div>
-                                    <Label className="text-sm font-medium">Choose Languages (optional)</Label>
-                                    <p className="text-sm text-muted-foreground">Select one or more languages to include starter files.</p>
-                                </div>
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-2">
-                                    {languages.map(lang => (
-                                        <button 
-                                            key={lang.id}
-                                            onClick={() => handleLanguageSelect(lang.id)}
-                                            className={cn(
-                                                "flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-colors",
-                                                selectedLanguages.includes(lang.id) 
-                                                    ? 'border-primary bg-primary/10' 
-                                                    : 'border-border hover:border-accent hover:bg-accent/50'
-                                            )}
-                                        >
-                                            <FileIcon filename={lang.file.name} className="w-8 h-8"/>
-                                            <span className="text-xs font-medium text-center">{lang.name}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <DialogFooter>
-                                <Button type="submit" onClick={handleCreateProject} disabled={!newProjectName.trim()}>Create Project</Button>
-                            </DialogFooter>
+                        <DialogContent className="sm:max-w-md">
+                            {creationStep === 'name' && (
+                                <>
+                                    <DialogHeader>
+                                        <DialogTitle>Create New Project</DialogTitle>
+                                        <DialogDescription>
+                                            First, give your new project a name.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid grid-cols-4 items-center gap-4">
+                                            <Label htmlFor="name" className="text-right">
+                                                Name
+                                            </Label>
+                                            <Input
+                                                id="name"
+                                                value={newProjectName}
+                                                onChange={(e) => setNewProjectName(e.target.value)}
+                                                className="col-span-3"
+                                                placeholder="My Awesome Project"
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                         <Button variant="outline" onClick={() => handleCreateProject(true)} disabled={!newProjectName.trim()}>Skip and Create</Button>
+                                        <Button onClick={() => setCreationStep('languages')} disabled={!newProjectName.trim()}>Next</Button>
+                                    </DialogFooter>
+                                </>
+                            )}
+                             {creationStep === 'languages' && (
+                                <>
+                                    <DialogHeader>
+                                        <div className="flex items-center gap-2">
+                                           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setCreationStep('name')}>
+                                                <ArrowLeft className="h-4 w-4" />
+                                            </Button>
+                                            <div>
+                                                <DialogTitle>Choose Templates (Optional)</DialogTitle>
+                                                <DialogDescription>
+                                                    Select templates to start with.
+                                                </DialogDescription>
+                                            </div>
+                                        </div>
+                                    </DialogHeader>
+                                    <ScrollArea className="max-h-48 my-4 pr-4">
+                                        <div className="grid grid-cols-4 gap-2 pt-2">
+                                            {languages.map(lang => (
+                                                <button 
+                                                    key={lang.id}
+                                                    onClick={() => handleLanguageSelect(lang.id)}
+                                                    className={cn(
+                                                        "flex flex-col items-center justify-center gap-2 p-2 rounded-lg border-2 transition-colors h-20",
+                                                        selectedLanguages.includes(lang.id) 
+                                                            ? 'border-primary bg-primary/10' 
+                                                            : 'border-border hover:border-accent hover:bg-accent/50'
+                                                    )}
+                                                >
+                                                    <FileIcon filename={lang.file.name} className="w-6 h-6"/>
+                                                    <span className="text-xs font-medium text-center">{lang.name}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                    <DialogFooter>
+                                        <Button type="submit" onClick={() => handleCreateProject(false)}>Create Project</Button>
+                                    </DialogFooter>
+                                </>
+                            )}
                         </DialogContent>
                     </Dialog>
                 </div>
@@ -273,7 +310,3 @@ export default function DashboardPage() {
         </div>
     );
 }
-
-    
-
-    

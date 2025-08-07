@@ -24,7 +24,7 @@ const buildTree = (
         const extension = filename.split('.').pop()?.toLowerCase() || '';
         const map: { [key: string]: string } = {
           'js': 'javascript', 'jsx': 'javascript', 'ts': 'typescript', 'tsx': 'typescript',
-          'py': 'python', 'rs': 'rust', 'cpp': 'c++', 'c': 'c', 'h': 'c', 'cs': 'csharp',
+          'py': 'python', 'rs': 'rust', 'cpp': 'cpp', 'c': 'c', 'h': 'c', 'cs': 'csharp',
           'html': 'html', 'css': 'css', 'json': 'json', 'md': 'markdown',
         };
         return map[extension] || 'plaintext';
@@ -141,5 +141,3 @@ export const generateProjectFromLanguages = (languageIds: string[], projectName:
     
     return { fileTree, initialContent: contentMap };
 };
-
-    

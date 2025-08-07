@@ -39,10 +39,15 @@ export default function SettingsPanel({ onClose }: SettingsPanelProps) {
                                     <SelectValue placeholder="Select theme" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="dark">Dark</SelectItem>
-                                    <SelectItem value="light">Light</SelectItem>
-                                    <SelectItem value="ocean">Ocean</SelectItem>
-                                    <SelectItem value="rose">Rose</SelectItem>
+                                    <div className="grid grid-cols-2 gap-1">
+                                        <SelectItem value="dark">Dark</SelectItem>
+                                        <SelectItem value="light">Light</SelectItem>
+                                        <SelectItem value="ocean">Ocean</SelectItem>
+                                        <SelectItem value="rose">Rose</SelectItem>
+                                        <SelectItem value="solarized-dark">Solarized Dark</SelectItem>
+                                        <SelectItem value="monokai">Monokai</SelectItem>
+                                        <SelectItem value="cobalt">Cobalt</SelectItem>
+                                    </div>
                                 </SelectContent>
                             </Select>
                         </div>
